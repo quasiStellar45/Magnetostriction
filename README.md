@@ -15,5 +15,4 @@ Future additions to this repository will include descriptions of the magnetostri
   <li>a wire that is not in a uniform spatial magnetic field;</li>
   <li>and more...</li>
 </ul>
-<br/>
 If you are in this group, please feel free to contribute any code that might provide insight into these magnetostrictive responses.
