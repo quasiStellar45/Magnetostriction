@@ -11,7 +11,7 @@ The goal of this repository is to determine what the strain signal will look lik
 Future additions to this repository will include descriptions of the magnetostrictive response of: 
 
 <ul>
-  <li>multiple domians; </li>
+  <li>multiple domains; </li>
   <li>a 3D system; </li>
   <li>a anisotropic domain;</li> 
   <li>an anisotropic wire;</li> 
