@@ -10,10 +10,10 @@ clear;
 close all
 
 %% Which Plots to Generate - enter true or false (1 or 0)
-dynamics_plots = 0;   % theta dynamics plots
+dynamics_plots = 1;   % theta dynamics plots
 strain_plot = 0;      % strain plot
-FFT_plot = 0;         % FFT plot
-hysteresis_plots = 1; % hysteresis plots
+FFT_plot = 1;         % FFT plot
+hysteresis_plots = 0; % hysteresis plots
 run_large = 0;        % large scale animation
 run_small = 0;        % small scale animation
                       % - both animations cannot run at the same time
@@ -25,32 +25,39 @@ Ms = 4.908e2; % kA/m, Saturation magnetization of Ni at 298K
 L0 = -34;     % ppm, saturation magnetostriction of Ni
 lambda = 1;   % adjustable damping parameter
 
-% Source Properties, H = H0sin(omega*t-phi)
-f = 100;  % Hz, source frequency: omega = 2pi*f
-H0 = 100; % kA/m, source amplitude
-phi = 0;  % radians, source phase; if set to -pi/2, the source becomes cos
-         
+% Source Properties, H = H0sin(omega*t-phi)+H_bias or
+% H0square(omega*t)+Hbias
+HSource = 1;  % set to 1 for a sin source, 0 for a square wave. To 
+              % run the square wave you will need MATLAB's signal
+              % processing package.
+f = 100;      % Hz, source frequency: omega = 2pi*f 
+H0 = 8;      % kA/m, source amplitude
+phi = 0;      % radians, source phase; if set to -pi/2, the source becomes 
+              % cosine.
+H_bias = 0;   % Add a bias to the source signal. If =0, no bias is included
+
 % Initial Conditions and FFT Parameters
 theta0 = pi/3; % radians, initial theta position
 t_0 = 0;       % s, time where theta and strain plots begin
-t_f = 0.1;     % s, final time
-fs = 1e6;      % Hz, FFT sampling frequency
+t_f = 2;       % s, final time
+fs = 1e5;      % Hz, FFT sampling frequency
 sety = 10;     % yaxis upper limit of the FFT
 
 %% Animations - check these parameters before running the animations
 % Large Scale Animation - displays all motion of the magnetic moment
 step_large = 10;     % iteration step of animation
-Hfactor_large = 1;   % factor to increase the magnetic field vector by
-t_frac_large = 10;   % What fraction of the total time do you want to run?
+Hfactor_large = 5;   % factor to increase the magnetic field vector by. 
+                       % This value should be H_factor*H0 <= Ms.
+t_frac_large = 100;   % What fraction of the total time do you want to run?
 
 % Small Scale Animation - displays small scale motion of magnetic moment
 % when H is in the theta = 0 direction. Run the large scale animation first
 % to see if there are small oscillations. If there are, run this animation
 % to increase the size of those small scale oscillations.
-step_small = 10;      % iteration step of animation
-Hfactor_small = 1;    % factor to increase the magnetic field vector by
-t_frac_small = 10;    % What fraction of the total time do you want to run?
-theta_limit_0 = 1e-10;% upper limit of thetas of interest when the magnetic 
+step_small = 1;       % iteration step of animation
+Hfactor_small = 5;    % factor to increase the magnetic field vector by
+t_frac_small = 200;    % What fraction of the total time do you want to run?
+theta_limit_0 = 5e-10; % upper limit of thetas of interest when the magnetic 
                       % field is pointing in the direction of theta = 0. 
                       % Note that this may need to be on the order of 
                       % 10^-10 for high H0 (>10 kA/m).
@@ -72,14 +79,25 @@ omega = 2*pi*f;            % Radians/s source frequency
 
 %% ODE Solver (Runge-Kutta Method)
 tspan = 0:1/fs:t_f-1/fs;     % s, time span of interest
-H = H0*sin(omega*tspan-phi); % magnetic field signal
+if HSource == 1
+H = H0*sin(omega*tspan-phi)+H_bias; % magnetic field signal
+else
+H = H0*square(omega*tspan);
+end
 
 [t,theta] = ...
-    ode45(@(t,theta) fun(t,theta,gamma,alpha,H0,omega,phi),tspan,theta0);
+    ode45(@(t,theta) LLG_2D(t,theta,gamma,alpha,H0,omega,phi,HSource,H_bias),tspan,theta0);
 
 %% Plot of theta
+if HSource == 1
+    j = 1;
+else
+    j = 0;
+end
+
 if dynamics_plots == true
 figure(1)
+subplot(2+j,1,1)
 plot(t,theta,'-')
 xlabel('Time (s)');
 ylabel('\theta (radians)');
@@ -91,26 +109,10 @@ ylim([-10*H0 10*H0])
 ylabel('H (kA/m)')
 legend('\theta','H')
 
-%% Converted plot of theta to cos(theta)
-conv_cos = cos(theta); % calc cosin of theta for conversion
-
-figure(2)
-plot(t,conv_cos)
-xlabel('Time (s)');
-ylabel('cos\theta');
-title('Cosine of Magnetic Moment Angle')
-xlim([t_0 t_f])
-ylim([-1.5 1.5])
-yyaxis right
-plot(t,H,'r')
-ylim([-H0 10*H0])
-ylabel('H (kA/m)')
-legend('cos\theta','H')
-
 %% Plot of Angular Velocity
-dthetadt = fun(t,theta,gamma,alpha,H0,omega,phi); % Calc dthetadt 
+dthetadt = LLG_2D(t,theta,gamma,alpha,H0,omega,phi,HSource,H_bias); % Calc dthetadt 
 
-figure(3)
+subplot(2+j,1,2)
 plot(t,dthetadt,'-')
 xlabel('Time (s)');
 ylabel('$\dot{\theta} (radians/s)$','Interpreter','latex');
@@ -124,12 +126,13 @@ vl = legend('$\dot{\theta}$','H');
 set(vl, 'Interpreter', 'latex');
 
 %% Plot of Angular Acceleration
-% Calculate angular acceleration
+% Calculate angular acceleration (only for sine wave)
+if HSource == 1
 d2thetadt2 = ...
     -gamma*(1+alpha^2)/(1+alpha)*H0*(omega*cos(omega*t-phi).*sin(theta)...
-    + dthetadt.*sin(omega*t-phi).*cos(theta));
+    + dthetadt.*(sin(omega*t-phi)+H_bias).*cos(theta));
 
-figure(4)
+subplot(3,1,3)
 plot(t,d2thetadt2,'-')
 xlabel('Time (s)');
 ylabel('$\ddot{\theta} (radians/s^2)$','Interpreter','latex');
@@ -143,11 +146,13 @@ al = legend('$\ddot{\theta}$','H');
 set(al, 'Interpreter', 'latex');
 end
 
+end
+
 %% Plot of Strain
 ll = 3/2*L0.*(cos(theta).^2-1/3); % ppm, homogeneous strain response
 if strain_plot == true
 
-figure(5)
+figure(2)
 plot(t,ll,'-')
 xlabel('Time (s)');
 ylabel('\Lambda_{\theta} (ppm)');
@@ -166,7 +171,7 @@ y = fft(ll);
 N = fs*t_f; %  number of samples
 fq = fs*(0:N/2-1)/N; % convert to frequency domain
 
-figure(6)
+figure(3)
 plot(fq,abs(y(1:N/2)/(N/2)))
 xlabel('Frequency (Hz)')
 ylabel('Magnitude')
@@ -178,19 +183,24 @@ end
 %% Magnetization Hysteresis Plot
 if hysteresis_plots == true
 Mx = Ms*cos(theta);
+My = Ms*sin(theta);
 
-figure(7)
+figure(4)
+subplot(1,2,1)
 plot(H,Mx)
-xlim([-150 150])
-ylim([-600 600])
 xlabel('H (kA/m)')
 ylabel('M_x (kA/m)')
-title('Magnetization Hysteresis Plot')
+grid on
+subplot(1,2,2)
+plot(H,My)
+xlabel('H (kA/m)')
+ylabel('M_y (kA/m)')
 grid on
 
+sgtitle('Magnetization Hysteresis Plots')
 
 %% Strain Hysteresis Plot
-figure(8)
+figure(5)
 plot(H,ll)
 xlabel('H (kA/m)')
 ylabel('\Lambda_{\theta} (ppm)')
@@ -202,7 +212,7 @@ end
 % mutliplies the magnetic field by a specified constant.
 if run_large == true
     for i=1:step_large:length(t)/t_frac_large
-        figure(9)
+        figure(6)
         polarplot(theta(i)*(0:1),0:1,'b-',[0 0],Hfactor_large*[0 H(i)/Ms],'r-')
         title(strcat('Time:',{' '},string(t(i)),'s'))
     end
@@ -214,11 +224,11 @@ end
 if run_small == true
     for i = 1:step_small:length(t)/t_frac_small
         if (abs(1-cos(theta(i))) < theta_limit_0)
-            figure(10)
+            figure(7)
             polarplot(theta_factor_0*theta(i)*(0:1),0:1,'b-',[0 0],Hfactor_small*[0 H(i)/Ms],'r-')
             title(strcat('Time:',{' '},string(t(i)),'s'))
         else
-            figure(10)
+            figure(7)
             polarplot(0,1,[0 0],Hfactor_small*[0 H(i)/Ms],'r-')
             title(strcat('Time:',{' '},string(t(i)),'s'))
         end
@@ -226,6 +236,12 @@ if run_small == true
 end
 
 %% Equation of Motion
-function dthetadt = fun(t,theta,gamma,alpha,H0,omega,phi)
-dthetadt = -gamma*(1+alpha^2)/(1+alpha)*H0.*sin(omega.*t-phi).*sin(theta);
+function dthetadt = LLG_2D(t,theta,gamma,alpha,H0,omega,phi,HSource,H_bias)
+if HSource == 1
+dthetadt = ...
+    -gamma*(1+alpha^2)/(1+alpha)*(H0.*sin(omega.*t-phi)+H_bias).*sin(theta);
+else
+dthetadt = ...
+    -gamma*(1+alpha^2)/(1+alpha)*(H0.*square(omega*t)+H_bias).*sin(theta);
+end
 end
