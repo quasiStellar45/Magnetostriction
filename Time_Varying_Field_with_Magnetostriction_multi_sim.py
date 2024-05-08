@@ -13,9 +13,11 @@ import os
 import pandas as pd
 import scipy as sp
 
+# define the number label of the run here, this will create a new folder for the outputs
+newpath = r'C:\Users\Tomas\Desktop\Martin Group\3D_results\CWPpresentation_' # define model location and name here
 # Run Number
 num = 1        # initial number of run to start at
-num_runs = 30  # number of simulations to run
+num_runs = 1  # number of simulations to run
 # Time setup
 tfinal = .5          # Final time of simulation
 tstep =1e-5        # timestep in seconds
@@ -28,13 +30,13 @@ K1 = -0.5e5/1.257e2       # anisotropy constant 1 J/m^3: K1 < 0 indicates hard a
 K2 = -0.2e5/1.257e2       # anisotropy constant 2 J/m^3, not callable in this code 
 u_11 = (1, 0, 0)    # K1 axis one: will be hard axis if K1 < 0, easy axis if K1 > 0
 u_12 = (0, 1, 0)    # K1 axis 2: just needs to be orthogonal to u_11
-#damping = .75         # damping constant (alpha)
-#Ms = 4.9e5          # magnetization saturation (A/m)
+damping = .75         # damping constant (alpha)
+Ms = 5.35e5          # magnetization saturation (A/m)
 Tc = 631            # K, Curie temperature
 M0 = 5.2e5          # Ms at 0K (A/m)
 # Alternating source properties
 source_freq = 100   # source frequency (Hz)
-H_app = (0, 0, 1e4)# applied field (A/m) in  (x,y,z) coordinates
+H_app = (0, 0, 1.3e3)# applied field (A/m) in  (x,y,z) coordinates
 source_type = 'sin' # waveform of source
 # Strain measurement axis
 B = np.array([0,0,1]) # ([x,y,z])
@@ -44,6 +46,7 @@ L = 2*r            # material length, m
 d = 1e-9            # cell dimensions, m
 # Temperature modeling
 Temp = 294               # Temperature in K
+'''
 t = Temp/Tc              # fractional temperature
 
 # function to determine magnetization saturation
@@ -59,6 +62,7 @@ def sigmoid(x):
 
 # Apply the sigmoid function to temperature
 damping = sigmoid(Temp)
+'''
 
 def Ms_fun(pos):
     """Function to set magnitude of magnetisation: zero outside cylindric shape,
@@ -99,8 +103,6 @@ def cube_fun(pos):
 for j in range(0,num_runs):
     #display run mumber
     print("Run Number: ",str(num))
-    # define the number label of the run here, this will create a new folder for the outputs
-    newpath = r'C:\Users\Tomas\Desktop\Martin Group\3D_results\temperature_' # define model location and name here
     newpath = newpath + str(num) # appends the number (num) of the run to the file name
     if not os.path.exists(newpath):
         os.makedirs(newpath)
@@ -332,6 +334,6 @@ for j in range(0,num_runs):
     # edit magnetic field strength for next run
     # H_app = tuple(np.array(H_app) + np.array((0,0,.01)))
     # edit temperature for next run
-    Temp += 1
+    #Temp += 1
     #edit run number for next run
     num += 1
