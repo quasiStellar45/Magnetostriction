@@ -1,4 +1,4 @@
-#Two-dimensional model
+# Two-dimensional model
 This folder contains code used for two-dimensional modeling of magnetostriction. This code was created with MATLAB 2022b. The code files are:
 <ul>
   <li>Domain_Wall.m : This file attempts to describe the motion of domain walls within a ferromagnetic material when placed in an alternating magnetic field. The formula used for the domain wall motion is $m\frac{d^2x}{dt^2}+\beta \frac{dx}{dt}+\alpha x = 2M_sH$.</li>
