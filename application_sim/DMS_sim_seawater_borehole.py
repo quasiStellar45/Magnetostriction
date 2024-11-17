@@ -35,11 +35,13 @@ from SimPEG.potential_fields import magnetics
 # Define code directions and certain variables here.
 # For further edits, you may need to edit the code below this section.
 #
-write_output = True      # True to output the forward model results
-output_location = 'sw_borehole' # output folder within 'outputs'
-gradient = False          # True if you want a gradient boundary
-simple = True            # True for simple model, False for complex
-boundary = 0           # define the boundary for the simple model, this is not used in the complex model     
+write_output = True        # True to output the forward model results
+output_location = 'sw_bh_gradient' # output folder within 'outputs'
+gradient = True           # True if you want a gradient boundary
+simple = True              # True for simple model, False for complex
+boundary = -15               # define the boundary for the simple model, this is not used in the complex model   
+borehole_side_length = 0.1 # side length of the square cross section of the borehole in meters  
+plot_sensors = True        # True to plot the sensor locations
 
 #############################################
 # Topography
@@ -49,7 +51,7 @@ boundary = 0           # define the boundary for the simple model, this is not u
 # topography could also be loaded from a file.
 #
 
-[x_topo, y_topo] = np.meshgrid(np.linspace(-50, 50, 100), np.linspace(-.5, .5, 20))
+[x_topo, y_topo] = np.meshgrid(np.linspace(-50, 50, 100), np.linspace(-borehole_side_length/2,borehole_side_length/2, 20))
 z_topo =  np.sqrt((x_topo)**2+(y_topo)**2)
 x_topo, y_topo, z_topo = mkvc(x_topo), mkvc(y_topo), mkvc(z_topo)
 xyz_topo = np.c_[x_topo, y_topo, z_topo]
@@ -66,11 +68,11 @@ xyz_topo = np.c_[x_topo, y_topo, z_topo]
 
 # Define the observation locations as an (N, 3) numpy array or load them.
 xr = np.linspace(-50, 50, 50)
-yr = np.linspace(-.25, .25, 2)
+yr = np.linspace(-borehole_side_length/2, borehole_side_length/2, 3)
 x, y = np.meshgrid(xr, yr)
 x, y = mkvc(x.T), mkvc(y.T)
 fun_interp = LinearNDInterpolator(np.c_[x_topo, y_topo], z_topo)
-z = - .25*np.ones(len(y))  # Sensor location in m below surface.
+z = - borehole_side_length/2*np.ones(len(y))  # Sensor location in m below surface.
 receiver_locations = np.c_[x, y, z]
 
 # Define the component(s) of the field we want to simulate as a list of strings.
@@ -106,11 +108,11 @@ survey = magnetics.survey.Survey(source_field)
 # Here, we create the tensor mesh that will be used for the forward simulation.
 #
 
-dh = .05
+dh = borehole_side_length/20
 dx = 2
 hx = [(dx, 50)]
-hy = [(dh, 10)]
-hz = [(dh, 10)]
+hy = [(dh, 20)]
+hz = [(dh, 20)]
 mesh = TensorMesh([hx, hy, hz], "CCN")
 
 
@@ -153,16 +155,16 @@ for e in xr: # for simple boundary with gradient, replace xr with [boundary] inc
     if gradient:
         ind_mix1 = (
             (mesh.gridCC[ind_active, 0] > e)
-            & (mesh.gridCC[ind_active, 0] <= e+10)
+            & (mesh.gridCC[ind_active, 0] <= e+15)
         )
 
         ind_mix2 = (
-            (mesh.gridCC[ind_active, 0] > e+10)
-            & (mesh.gridCC[ind_active, 0] <= e+30)
+            (mesh.gridCC[ind_active, 0] > e+15)
+            & (mesh.gridCC[ind_active, 0] < e+30)
         )
 
         ind_fresh = (
-            (mesh.gridCC[ind_active, 0] > e+30)
+            (mesh.gridCC[ind_active, 0] >= e+30)
             & (mesh.gridCC[ind_active, 0] <= max(x))
         )
 
@@ -172,7 +174,6 @@ for e in xr: # for simple boundary with gradient, replace xr with [boundary] inc
         ind_fresh = (
             (mesh.gridCC[ind_active, 0] > e)
             & (mesh.gridCC[ind_active, 0] <= max(x))
-            & (mesh.gridCC[ind_active, 2] < -5 + ii)
         )
 
 
@@ -193,9 +194,12 @@ mesh.plot_slice(
     grid=True,
     clim=(np.min(model), np.max(model)),
 )
-ax1.set_title("Model slice at y = 0 m")
+ax1.set_title("Borehole model slice at y = 0 m")
 ax1.set_xlabel("x (m)")
 ax1.set_ylabel("z (m)")
+if plot_sensors:
+    p1 = ax1.plot(x,z,'o',label='sensors')
+    ax1.legend(handles= p1)
 
 ax2 = fig.add_axes([0.85, 0.12, 0.05, 0.78])
 norm = mpl.colors.Normalize(vmin=np.min(model), vmax=np.max(model))
@@ -241,17 +245,18 @@ plot2Ddata(
     contourOpts={"cmap": "bwr"},
 )
 
-p1 = ax1.plot(x,y,'.',label='sensors')
-ax1.set_title("TMI Anomaly")
+ax1.set_title("Borehole TMI Anomaly")
 ax1.set_xlabel("x (m)")
 ax1.set_ylabel("y (m)")
 ax1.tick_params(axis='y', labelsize=12)
 ax1.grid(axis='y')
-ax1.legend(handles= p1)
+if plot_sensors:
+    p1 = ax1.plot(x,y,'.',label='sensors')
+    ax1.legend(handles= p1)
 
 # y_axis components
-ax1.yaxis.set_ticks(np.linspace(-.5, .5, 5))
-ax1.set_aspect(aspect=20)
+ax1.yaxis.set_ticks(np.linspace(-borehole_side_length, borehole_side_length, 5))
+ax1.set_aspect(aspect=80)
 
 ax2 = fig.add_axes([0.15, 0.3, 0.7, 0.03])  # [left, bottom, width, height]
 norm = mpl.colors.Normalize(vmin=-np.max(np.abs(dpred)), vmax=np.max(np.abs(dpred)))

@@ -23,12 +23,6 @@ plt_title = "Borehole model profile comparison at y = 0 m"
 # input directory path here
 dir_path = os.getcwd() + '\\outputs\\Fe_bh\\'
 
-# Define if the model is a subsurface model
-# if True, the script will plot the data at y = 0 m
-# if False, the script will plot average of the data 
-# at y = 0.25 m and y = -0.25 m (borehole model)
-subsurface_model = False
-
 def break_string_at_underscore_and_dot(s):
     # Use regex to split the string at both _ and .
     return re.split(r'[_\.\(m)]', s)
@@ -74,25 +68,12 @@ for e in suffix:
 
     x = receiver_locations[:,0]
     y = receiver_locations[:,1]
-    if subsurface_model:
-        ydata = []
-        for ii in range(0,len(y)):
-            if y[ii] == 0:
-                ydata.append((x[ii],dobs[ii]))
-        xvals = [x for x, y in ydata]
-        cdata = [y for x, y in ydata]
-    else:
-        ydata1 = []
-        ydata2 = []
-        for ii in range(0,len(y)):
-            if y[ii] == 0.25:
-                ydata1.append((x[ii],dobs[ii]))
-            elif y[ii] == -0.25:
-                ydata2.append((x[ii],dobs[ii]))
-
-        ydata = (np.array(ydata1) + np.array(ydata2))/2
-        xvals = [x for x, y in ydata]
-        cdata = [y for x, y in ydata]
+    ydata = []
+    for ii in range(0,len(y)):
+        if y[ii] == 0:
+            ydata.append((x[ii],dobs[ii]))
+    xvals = [x for x, y in ydata]
+    cdata = [y for x, y in ydata]
 
     e = e.replace(',','.')
     plt.plot(xvals[1:-1],cdata[1:-1],marker='.',linestyle='-',label=e)

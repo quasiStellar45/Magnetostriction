@@ -18,7 +18,7 @@ sys.path.append(r'C:\Users\Tomas\simpeg')
 plot_title = "Borehole model profile at y = 0 m" 
 
 # files to work with
-dir_path = os.getcwd() + '\\outputs\\sw_borehole\\'
+dir_path = os.getcwd() + '\\outputs\\sw_bh_gradient\\'
 file_list = os.listdir(dir_path)
 
 # plot all results
@@ -41,15 +41,11 @@ dobs = dobs[:, -1]
 
 x = receiver_locations[:,0]
 y = receiver_locations[:,1]
-ydata1 = []
-ydata2 = []
+ydata = []
 for ii in range(0,len(y)):
-    if y[ii] == 0.25:
-        ydata1.append((x[ii],dobs[ii]))
-    elif y[ii] == -0.25:
-        ydata2.append((x[ii],dobs[ii]))
+    if y[ii] == 0:
+        ydata.append((x[ii],dobs[ii]))
 
-ydata = (np.array(ydata1) + np.array(ydata2))/2
 xvals = [x for x, y in ydata]
 cdata = [y for x, y in ydata]
 
